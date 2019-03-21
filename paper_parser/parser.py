@@ -12,7 +12,7 @@ def paper_generator():
         select_sql = 'select {0} from {1} where id={{}}'.format(
             ','.join(settings.MysqlParameter.columns), settings.MysqlParameter.used_table
         )
-        for row_id in range(3883, mc.max_id + 1):
+        for row_id in range(1, mc.max_id + 1):
             if row_id in settings.MysqlParameter.skip_row_ids:
                 continue
             mc.cursor.execute(select_sql.format(row_id))
@@ -32,7 +32,7 @@ def paper_generator():
 
 def paper_export():
     """ 输出文书信息 """
-    csv_path = 'data_tanwuhuilu1.csv'
+    csv_path = 'F://data_tanwuhuilu1.csv'
     with functions.Csv(csv_path) as csv:
         for _paper in paper_generator():
             try:
@@ -98,5 +98,5 @@ def paper_export():
 
 if __name__ == '__main__':
     pass
-    paper_export()
+    # paper_export()
 

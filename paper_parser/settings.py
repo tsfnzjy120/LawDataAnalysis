@@ -10,7 +10,7 @@ class MysqlParameter:
     host, port, charset = '127.0.0.1', 3306, 'utf8'
     users, passwds = ('user1', 'passwd1'), ('user2', 'passwd2')
     database = 'db_name'
-    tables = ('table', )
+    tables = ('table_name', )
     used_table = tables[0]  # 根据使用的表修改
     columns = (
         'id', 'jid', 'case_num', 'title', 'judge_date', 'province', 'court',

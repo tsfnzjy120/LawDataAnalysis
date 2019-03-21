@@ -196,11 +196,15 @@ class Paper:
     @property
     def law_articles(self):
         """ 获取适用法律信息，返回包含二元组(法律名，法条名)的列表 """
-        law_articles_detail = self.json['law_regu_details']
         law_articles = []
-        if law_articles_detail:
-            for law_article_dict in law_articles_detail:
-                law_articles.append((law_article_dict["lawName"], law_article_dict["tiaoName"]))
+        try:
+            law_articles_detail = self.json['law_regu_details']
+        except KeyError:
+            pass
+        else:
+            if law_articles_detail:
+                for law_article_dict in law_articles_detail:
+                    law_articles.append((law_article_dict["lawName"], law_article_dict["tiaoName"]))
         return law_articles  # list[(str, str), ]
 
     @property
@@ -449,8 +453,10 @@ class CrimeJudgePaper(JudgePaper):
                 # birth, age
                 birth_match = settings.pattern_defendant['birth'].search(defendant_text)
                 if birth_match:
-                    defendant_info['birth'] = functions.TextProcessor(birth_match.group(0)).extract_dates()[0]
-                    defendant_info['age'] = self.judge_date.year - defendant_info['birth'].year if self.judge_date else None
+                    dates = functions.TextProcessor(birth_match.group(0)).extract_dates()
+                    if dates:
+                        defendant_info['birth'] = dates[0]
+                        defendant_info['age'] = self.judge_date.year - defendant_info['birth'].year if self.judge_date else None
                 if not defendant_info['age']:  # 有些判决书直接写了年龄
                     age_match = settings.pattern_defendant['age'].search(defendant_text)
                     if age_match:

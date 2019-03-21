@@ -177,7 +177,11 @@ class TextProcessor:
         dates = []
         date_strings = settings.pattern_date.findall(self.clean_text)
         if date_strings:
-            dates = [datetime.strptime(d, '%Y年%m月%d日') for d in date_strings]
+            for d in date_strings:
+                try:
+                    dates.append(datetime.strptime(d, '%Y年%m月%d日'))
+                except ValueError:
+                    pass
         return tuple(dates)  # tuple(datetime, )
 
     def check_exist(self, target):
@@ -278,7 +282,7 @@ class Csv:
         self.f.write(','.join(map(lambda v: ItemDumper(v).format(), items.values())))
         self.f.write("\n")
         self.done_rows += 1
-        print('export: {} rows'.format(self.done_rows))
+        print('export: {} rows done'.format(self.done_rows))
 
 
 if __name__ == '__main__':
