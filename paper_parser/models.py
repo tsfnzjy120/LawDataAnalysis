@@ -5,7 +5,6 @@ import ujson
 from paper_parser import settings
 from paper_parser import functions
 from datetime import datetime
-import os
 
 
 class Paper:
@@ -242,23 +241,20 @@ class Paper:
                                 yield para['labelType'], sent['length'], sent['text']  # (int, int, str)
 
     def to_html(self, html_path):
-        """ 输出文书内容到html文件。必须指定绝对路径html_path """
+        """ 输出文书内容到html文件。必须指定文件的绝对路径html_path """
         """ 按段落输出，同时输出各段落标记 """
-        file_name = '{}.html'.format(self.paper_id)
-        if os.path.isdir(html_path):
-            file_path = os.path.join(html_path, file_name)
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(settings.html_template_head.replace('{title}', str(self.paper_id)))
-                jid, cause, title, case_number, court = functions.ItemDumper(  # 格式化输出
-                    self.jid, self.cause, self.title, self.case_number, self.court
-                ).format()
-                f.write("""<p>{0} {1}</p>\n<p>{2}</p>\n<p>{3}</p>\n<p>{4}</p>\n""".format(jid, cause, title, case_number, court))
-                for para in self.all_paragraphs:
-                    f.write("<p>{0}.{1}</p>\n<p>{2}</p>\n".format(
-                        para[0], para[1], functions.TextProcessor(para[3]).clean_text
-                    ))
-                f.write(settings.html_template_tail)
-            print('to html file finished: {}'.format(file_path))
+        with open(html_path, 'w', encoding='utf-8') as f:
+            f.write(settings.html_template_head.replace('{title}', str(self.paper_id)))
+            jid, cause, title, case_number, court = functions.ItemDumper(  # 格式化输出
+                self.jid, self.cause, self.title, self.case_number, self.court
+            ).format()
+            f.write("""<p>{0} {1}</p>\n<p>{2}</p>\n<p>{3}</p>\n<p>{4}</p>\n""".format(jid, cause, title, case_number, court))
+            for para in self.all_paragraphs:
+                f.write("<p>{0}.{1}</p>\n<p>{2}</p>\n".format(
+                    para[0], para[1], functions.TextProcessor(para[3]).clean_text
+                ))
+            f.write(settings.html_template_tail)
+        print('to html finished at paper_id: {}'.format(self.paper_id))
         return 0
 
 

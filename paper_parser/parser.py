@@ -4,10 +4,11 @@
 from paper_parser import functions
 from paper_parser import settings
 from paper_parser import models
+from os import path
 
 
 def paper_generator():
-
+    """ 遍历文书对象 """
     with functions.MysqlConnector() as mc:
         select_sql = 'select {0} from {1} where id={{}}'.format(
             ','.join(settings.MysqlParameter.columns), settings.MysqlParameter.used_table
@@ -30,9 +31,18 @@ def paper_generator():
             yield models.TanwuhuiluPaper(row_id, paper_content_decoded)
 
 
-def paper_export():
-    """ 输出文书信息 """
-    csv_path = 'F://data_tanwuhuilu1.csv'
+def paper_html_export(html_dir):
+    """ 输出文书html。须指定输出的目录html_dir """
+    if path.isdir(html_dir):
+        for paper in paper_generator():
+            file_name = '{}.html'.format(paper.paper_id)
+            file_path = path.join(html_dir, file_name)
+            paper.to_html(file_path)
+    return 0
+
+
+def paper_export(csv_path):
+    """ 输出文书信息。须指定输出文件的路径csv_path """
     with functions.Csv(csv_path) as csv:
         for _paper in paper_generator():
             try:
@@ -96,7 +106,23 @@ def paper_export():
                 pass
 
 
+def get_samples(file_path, num=385):
+    """ 获取重复抽样样本的paper_id。必须指定输出文件的路径；可指定抽样数量，默认为385 """
+    # 获取抽样样本
+    paper_ids = []
+    print('Creating paper_ids Samples...')
+    for paper in paper_generator():
+        paper_ids.append(paper.paper_id)
+        if paper.paper_id % 10 == 0:  # 进度显示，以10为单位
+            print(paper.paper_id)
+    print('Created paper_ids Samples')
+    functions.Samples(paper_ids, num).export_result(file_path)
+    return 0
+
+
 if __name__ == '__main__':
     pass
-    # paper_export()
 
+    # paper_html_export('F//')
+    # paper_export('F//.csv')
+    # get_samples('F//.txt')

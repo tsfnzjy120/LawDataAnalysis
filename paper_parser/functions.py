@@ -9,6 +9,7 @@ from paper_parser import settings
 import re
 from datetime import datetime
 import jieba.posseg as pseg
+import numpy as np
 
 
 class MysqlConnector:
@@ -285,7 +286,34 @@ class Csv:
         print('export: {} rows done'.format(self.done_rows))
 
 
+class Samples:
+    """ 有放回的随机抽取人工抽检样本 """
+    def __init__(self, universe, num):
+        self.universe = universe  # 传入总体，列表或元组类型，元素为可用的paper_id
+        self.length = len(universe)  # 总体的数量
+        self.num = num  # 抽取样本的数量
+
+    def choice(self):
+        """ 抽取样本。num: 抽取的样本数量 """
+        universe = np.array(self.universe, dtype='int32')  # 转化为整数类型的numpy数组
+        result = np.random.choice(universe, self.num, replace=True)
+        result = result.tolist()  # 转为普通列表
+        return tuple(result)  # tuple(int, )
+
+    def export_result(self, file_path):
+        """ 输出抽取结果到文件，每行10个，制表符分隔 """
+        """ 输出的同时，根据进度打印结果，每行10个 """
+        result = self.choice()
+        with open(file_path, 'w', encoding='utf-8') as f:
+            for start_pos in range(0, len(result), 10):
+                result_unit = result[start_pos: start_pos + 10]
+                result_unit_str = "\t".join([str(paper_id) for paper_id in result_unit])
+                f.write(result_unit_str)
+                f.write("\n")
+                print(result_unit_str)
+        return 0
+
+
 if __name__ == '__main__':
     pass
-
 
