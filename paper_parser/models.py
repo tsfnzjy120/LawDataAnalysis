@@ -421,7 +421,7 @@ class CrimeJudgePaper(JudgePaper):
         """ 获取被告人信息字典 """
         text = functions.TextProcessor(self.litigant_info_text).clean_text
         defendant_info = {
-            'name': None, 'is_name_covered': None, 'sex': 1, 'birth': None, 'age': None,
+            'name': None, 'is_name_covered': None, 'sex': None, 'birth': None, 'age': None,
             'tribe': '汉族', 'is_minor': 0, 'educated': None, 'job': None
         }
         if text:
@@ -432,10 +432,13 @@ class CrimeJudgePaper(JudgePaper):
                     return defendant_info  # 无法正确获得含被告人信息的句子
                 defendant_text = text_split[1][:text_split[1].find('。')] + '。'
                 # name, is_name_covered
-                name_match = settings.pattern_defendant['name'].search(defendant_text)
-                if name_match:
-                    name = name_match.group(1)
-                    defendant_info['name'] = name if len(name) < 10 else None
+                if self.litigants:  # 先引用litigants中的名字
+                    defendant_info['name'] = '+'.join(self.litigants)
+                else:  # 如果没有，再自己查找
+                    name_match = settings.pattern_defendant['name'].search(defendant_text)
+                    if name_match:
+                        name = name_match.group(1)
+                        defendant_info['name'] = name if len(name) < 10 else None
                 if defendant_info['name']:
                     if '某' in defendant_info['name'] or functions.TextProcessor(defendant_info['name']).check_exist(r'[^\u4e00-\u9fff]'):
                         defendant_info['is_name_covered'] = 1
@@ -444,7 +447,9 @@ class CrimeJudgePaper(JudgePaper):
                 else:
                     return defendant_info  # 如果找不到姓名，则视为句子有缺陷，不再继续查找其他被告人信息，直接返回默认字典
                 # sex
-                if '，女' in defendant_text:
+                if '，男' in defendant_text:
+                    defendant_info['sex'] = 1
+                elif '，女' in defendant_text:
                     defendant_info['sex'] = 0
                 # birth, age
                 birth_match = settings.pattern_defendant['birth'].search(defendant_text)
@@ -494,24 +499,24 @@ class CrimeJudgePaper(JudgePaper):
         return is_plus_investigated  # int
 
     @property
-    def defensive_opinions(self):
+    def defensive_opinion_sentences(self):
         """ 在法院认定意见中，获取含辩护意见的多个句子元组或空元组 """
-        defensive_opinions = []
+        defensive_opinion_sentences = []
         if self.trial_level == 1:
             opinion_sentences = functions.TextProcessor(self.first_opinion_text).sentences
             if opinion_sentences:
                 if '本院认为' in opinion_sentences[0]:
                     for s in opinion_sentences:
                         if '辩护' in s:
-                            defensive_opinions.append(s)
-        return tuple(defensive_opinions)  # tuple(str, )
+                            defensive_opinion_sentences.append(s)
+        return tuple(defensive_opinion_sentences)  # tuple(str, )
 
     @property
     def is_defensive_opinions_accepted(self):
         """ 辩护意见是否被采信 0-不采信 1-部分采信 2-全部采信 """
         is_defensive_opinions_accepted = None
         sentences_accepted = []
-        for sentence in self.defensive_opinions:
+        for sentence in self.defensive_opinion_sentences:
             if '予以' in sentence:
                 if '不予' in sentence:
                     is_defensive_opinions_accepted = 1
@@ -539,7 +544,7 @@ class CrimeJudgePaper(JudgePaper):
         if self.trial_level == 1:
             text = functions.TextProcessor(self.first_opinion_text).clean_text
             # 消除辩护意见
-            for sentence in self.defensive_opinions:
+            for sentence in self.defensive_opinion_sentences:
                 text = text.replace(sentence, '')
             if '累犯' in text:
                 is_leifan = 1
@@ -553,7 +558,7 @@ class CrimeJudgePaper(JudgePaper):
         if self.trial_level == 1:
             text = functions.TextProcessor(self.first_opinion_text).clean_text
             # 消除辩护意见
-            for sentence in self.defensive_opinions:
+            for sentence in self.defensive_opinion_sentences:
                 text = text.replace(sentence, '')
             if '立功' in text:
                 is_ligong = 1
@@ -567,7 +572,7 @@ class CrimeJudgePaper(JudgePaper):
         if self.trial_level == 1:
             text = functions.TextProcessor(self.first_opinion_text).clean_text
             # 消除辩护意见
-            for sentence in self.defensive_opinions:
+            for sentence in self.defensive_opinion_sentences:
                 text = text.replace(sentence, '')
             if '自首' in text:
                 is_zishou = 1
@@ -577,20 +582,42 @@ class CrimeJudgePaper(JudgePaper):
     @property
     def is_tanbai(self):
         """ 是否有坦白情节 0-否 1-是 默认0 """
-        """ 包含四种表述：坦白；认罪；如实供述；配合 """
+        """ 包含表述：坦白；认罪；如实供述；交代 """
         is_tanbai = 0
         if self.is_zishou:  # 是自首的一定是坦白
             is_tanbai = 1
         elif self.trial_level == 1:
             text = functions.TextProcessor(self.first_opinion_text).clean_text
             # 消除辩护意见
-            for sentence in self.defensive_opinions:
+            for sentence in self.defensive_opinion_sentences:
                 text = text.replace(sentence, '')
             tanbai_match = settings.pattern_tanbai.search(text)
             if tanbai_match:
                 is_tanbai = 1
 
         return is_tanbai
+
+    @property
+    def gongfan(self):
+        """ 共犯状态 0-不区分主从 1-主犯 2-从犯 默认None """
+        """ 目前只适用于单人的判决书 """
+        gongfan = None
+        if self.trial_level == 1:
+            text = functions.TextProcessor(self.first_opinion_text).clean_text
+            # 消除辩护意见
+            for sentence in self.defensive_opinion_sentences:
+                text = text.replace(sentence, '')
+            no_zhucong_match = settings.pattern_gongfan['no_zhucong'].search(text)
+            if no_zhucong_match:
+                gongfan = 0
+            else:
+                zhucong_match = settings.pattern_gongfan['zhucong'].search(text)
+                if zhucong_match:
+                    if zhucong_match.group(1) == '主':
+                        gongfan = 1
+                    elif zhucong_match.group(1) == '从':
+                        gongfan = 2
+        return gongfan
 
     @property
     def penalty(self):
@@ -653,7 +680,7 @@ class TanwuhuiluPaper(CrimeJudgePaper):
 
     # 以下暂时只针对一审
     @property
-    def __amount_unsure(self):
+    def amount_unsure(self):
         """ 根据案件概述，初步获得起诉的总金额 """
         amount_unsure = None
         if self.trial_level == 1:
@@ -665,40 +692,24 @@ class TanwuhuiluPaper(CrimeJudgePaper):
         return amount_unsure  # float, 以万元为单位
 
     @property
-    def __amount_sure(self):
+    def amount_sure(self):
         """ 根据法院认定情况或已查明的事实，初步获得认定的总金额 """
         amount_sure = None
         if self.trial_level == 1:
             # 首先在法院认定情况中寻找
             text = functions.TextProcessor(self.first_opinion_text).clean_text
+            text = text[:text.find('辩护')]  # 截至'辩护'
             moneys = functions.TextProcessor(text).extract_moneys()
             if moneys:
                 amount_sure = max(moneys)
             # 如果找不到，再在已查明的事实中寻找
-            if amount_sure is None:
+            else:
                 text = functions.TextProcessor(self.first_fact_text).clean_text
+                text = text[:text.find('证据')]  # 定位事实部分
                 moneys = functions.TextProcessor(text).extract_moneys()
                 if moneys:
                     amount_sure = max(moneys)
         return amount_sure  # float, 以万元为单位
-
-    @property
-    def amounts(self):
-        """ 获取涉案金额，返回字典 """
-        amount_unsure, amount_sure = self.__amount_unsure, self.__amount_sure
-        amounts = {'unsure': amount_unsure, 'sure': amount_sure}
-        if amount_unsure is not None:
-            if amount_sure is not None:
-                if amount_unsure < amount_sure:  # 如果认定的金额大于起诉的金额
-                    text = functions.TextProcessor(self.first_opinion_text).clean_text
-                    inaccurate_amounts_match = settings.pattern_inaccurate_amounts.search(text)
-                    if inaccurate_amounts_match:  # 起诉金额不准确
-                        amounts['sure'] = amount_unsure - 0.01  # 认定金额 = 起诉金额 - 100
-                    else:  # 起诉金额准确
-                        amounts['sure'] = amount_unsure  # 认定金额 = 起诉金额
-            else:
-                amounts['sure'] = amount_unsure  # 如果认定的金额不存在，则将起诉的金额用于认定的金额
-        return amounts  # dict{float, }
 
     @property
     def num_of_facts(self):
@@ -730,15 +741,150 @@ class TanwuhuiluPaper(CrimeJudgePaper):
             if self.defendant_info['job'] is not None:  # 直接引用paper.defendant_info['job']
                 job_info['job'] = self.defendant_info['job']
             else:
-                first_fact_text_split = functions.TextProcessor(self.first_fact_text).clean_text.split('：')
-                text = first_fact_text_split[1] if len(first_fact_text_split) > 1 else first_fact_text_split[0]
+                text = functions.TextProcessor(self.first_fact_text).clean_text
+                text = text[:text.find('证据')]
                 job_match = settings.pattern_job_info['job'].search(text)
                 if job_match:
                     job_info['job'] = job_match.group(1)
+            if job_info['job'] is not None:
+                # 判断单位性质
+                for job_type in settings.JOB_TYPES:
+                    if job_info['job_type'] is None:
+                        for job_type_key in settings.JOB_TYPE_DICT[job_type]:
+                            if job_type in ('X', 'S'):  # 对行政机关、事业单位和人民团体特殊处理，只检查最后6个字
+                                _job = job_info['job'][-6:] if len(job_info['job']) > 6 else job_info['job']
+                                if job_type_key in _job:
+                                    job_info['job_type'] = job_type
+                                    break
+                            else:  # 其他类型的单位普通处理，对全部职务名称检索关键词
+                                if job_type_key in job_info['job']:
+                                    job_info['job_type'] = job_type
+                                    break
 
         return job_info
 
+    @property
+    def is_bad_effect(self):
+        """ 是否造成恶劣社会影响/国家和人民利益损失 0否1是 默认0 """
+        is_bad_effect = 0
+        if self.trial_level == 1:
+            text = functions.TextProcessor(self.first_opinion_text).clean_text
+            text = text[:text.find('辩护')]
+            match = settings.pattern_bad_effect.search(text)
+            if match:
+                is_bad_effect = 1
+
+        return is_bad_effect
+
+    # 以下适用贪污、受贿、挪用公款罪
+    @property
+    def money_usage(self):
+        """ 赃款的用途 """
+        money_usage = None
+        if self.trial_level == 1:
+            if self.cause in ('贪污罪', '受贿罪', '挪用公款罪'):
+                text = functions.TextProcessor(self.first_opinion_text).clean_text
+                match = settings.pattern_money_usage.search(text)
+                if match:
+                    money_usage = match.group(1)
+
+        return money_usage
+
+    # 以下只针对贪污、受贿罪（根据2016年办理贪污贿赂案件司法解释）
+    @property
+    def is_tuizang(self):
+        """ 是否退赃 0否1是 默认0 """
+        is_tuizang = None
+        if self.trial_level == 1:
+            if self.cause in ('贪污罪', '受贿罪'):
+                is_tuizang = 0
+                text = functions.TextProcessor(self.first_opinion_text).clean_text
+                text = text[:text.find('辩护')]
+                if '退' in text:  # 退回 退赃 退缴 退清 退出 退交 退还 退赔 退完
+                    is_tuizang = 1
+
+        return is_tuizang
+
+    @property
+    def is_punished_by_party_admin(self):
+        """ 是否曾因贪污、受贿受过党纪、行政处分 0否1是 默认0 """
+        is_punished_by_party_admin = None
+        if self.trial_level == 1:
+            if self.cause in ('贪污罪', '受贿罪'):
+                is_punished_by_party_admin = 0
+                text = functions.TextProcessor(self.first_opinion_text).clean_text
+                text = text[:text.find('辩护')]
+                match = settings.pattern_punished_by_party_admin.search(text)
+                if match:
+                    is_punished_by_party_admin = 1
+
+        return is_punished_by_party_admin
+
+    @property
+    def is_punished_by_criminal_law(self):
+        """ 是否曾因故意犯罪受过刑事追究 0否1是 默认0 """
+        is_punished_by_criminal_law = None
+        if self.trial_level == 1:
+            if self.cause in ('贪污罪', '受贿罪'):
+                if self.is_leifan == 1:  # 如果是累犯，该字段值自动为1
+                    is_punished_by_criminal_law = 1
+                else:
+                    is_punished_by_criminal_law = 0
+                    text = functions.TextProcessor(self.first_opinion_text).clean_text
+                    text = text[:text.find('辩护')]
+                    match = settings.pattern_punished_by_criminal_law.search(text)
+                    if match:
+                        is_punished_by_criminal_law = 1
+
+        return is_punished_by_criminal_law
+
+    # 以下针对贪污、挪用公款罪
+    @property
+    def is_special_money(self):
+        """ 是否贪污特定款项 0否1是 默认0 """
+        is_special_money = None
+        if self.trial_level == 1:
+            if self.cause in ('贪污罪', '挪用公款罪'):
+                is_special_money = 0
+                text = functions.TextProcessor(self.first_opinion_text).clean_text
+                text = text[:text.find('辩护')]
+                match = settings.pattern_special_money.search(text)
+                if match:
+                    is_special_money = 1
+
+        return is_special_money
+
+    # 以下只针对受贿罪
+    @property
+    def is_suohui(self):
+        """ 是否有索贿情节 0否1是 默认0 """
+        is_suohui = None
+        if self.trial_level == 1:
+            if self.cause == '受贿罪':
+                is_suohui = 0
+                text = functions.TextProcessor(self.first_opinion_text).clean_text
+                text = text[:text.find('辩护')]
+                if '索贿' in text:
+                    is_suohui = 1
+
+        return is_suohui
+
+    @property
+    def is_seek_promote(self):
+        """ 是否谋求他人职务调整 0否1是 默认0 """
+        is_seek_promote = None
+        if self.trial_level == 1:
+            if self.cause == '受贿罪':
+                is_seek_promote = 0
+                text = functions.TextProcessor(self.first_opinion_text).clean_text
+                text = text[:text.find('辩护')]
+                if '提拔' in text:
+                    is_seek_promote = 1
+
+        return is_seek_promote
 
 
 if __name__ == '__main__':
     pass
+
+

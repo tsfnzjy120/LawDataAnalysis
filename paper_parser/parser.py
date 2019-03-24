@@ -65,7 +65,6 @@ def paper_export(csv_path):
                     jurors=_paper.jurors,
                     full_court=_paper.full_court,
                     clerk=_paper.clerk,
-                    litigants=_paper.litigants,
                     lawyers=_paper.lawyers,
                     lawyer_firms=_paper.lawyer_firms,
                     is_delayed=_paper.is_delayed,
@@ -83,19 +82,27 @@ def paper_export(csv_path):
                     defendant_tribe=_paper.defendant_info['tribe'],
                     defendant_is_minor=_paper.defendant_info['is_minor'],
                     defendant_educated=_paper.defendant_info['educated'],
-                    defendant_job=_paper.defendant_info['job'],
                     is_plus_investigated=_paper.is_plus_investigated,
                     is_defensive_opinions_accepted=_paper.is_defensive_opinions_accepted,
                     is_leifan=_paper.is_leifan,
                     is_ligong=_paper.is_ligong,
                     is_zishou=_paper.is_zishou,
                     is_tanbai=_paper.is_tanbai,
-                    amounts_unsure=_paper.amounts['unsure'],
-                    amounts_sure=_paper.amounts['sure'],
+                    gongfan=_paper.gongfan,
+                    amounts_unsure=_paper.amount_unsure,
+                    amounts_sure=_paper.amount_sure,
                     num_of_facts=_paper.num_of_facts,
                     job=_paper.job_info['job'],
                     job_type=_paper.job_info['job_type'],
                     job_grade=_paper.job_info['job_grade'],
+                    is_bad_effect=_paper.is_bad_effect,
+                    money_usage=_paper.money_usage,
+                    is_tuizang=_paper.is_tuizang,
+                    is_punished_by_party_admin=_paper.is_punished_by_party_admin,
+                    is_punished_by_criminal_law=_paper.is_punished_by_criminal_law,
+                    is_special_money=_paper.is_special_money,
+                    is_suohui=_paper.is_suohui,
+                    is_seek_promote=_paper.is_seek_promote,
                     penalty_many=_paper.penalty['many'],
                     penalty_freedom=_paper.penalty['freedom'],
                     penalty_property=_paper.penalty['property'],
@@ -111,10 +118,10 @@ def get_samples(file_path, num=385):
     # 获取抽样样本
     paper_ids = []
     print('Creating paper_ids Samples...')
-    for paper in paper_generator():
-        paper_ids.append(paper.paper_id)
-        if paper.paper_id % 10 == 0:  # 进度显示，以10为单位
-            print(paper.paper_id)
+    for _paper in paper_generator():
+        paper_ids.append(_paper.paper_id)
+        if _paper.paper_id % 10 == 0:  # 进度显示，以10为单位
+            print(_paper.paper_id)
     print('Created paper_ids Samples')
     functions.Samples(paper_ids, num).export_result(file_path)
     return 0
@@ -123,6 +130,8 @@ def get_samples(file_path, num=385):
 if __name__ == '__main__':
     pass
 
-    # paper_html_export('F//')
-    # paper_export('F//.csv')
-    # get_samples('F//.txt')
+
+    # paper_html_export('F//html')
+    # paper_export('F://tanwuhuilu1-0324.csv')
+    # get_samples('F://samples.txt')
+

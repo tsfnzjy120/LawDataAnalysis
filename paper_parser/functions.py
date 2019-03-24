@@ -195,10 +195,9 @@ class TextProcessor:
 
     @property
     def words(self):
-        """ 去掉标点符号，分词和词性标注，返回一个含word对象（用 w.word 调用词，w.flag调用词性）的迭代器 """
+        """ 分词和词性标注，返回一个含word对象（用 w.word 调用词，w.flag调用词性）的迭代器 """
         """ 常用标注集 n-名词 nr-人名 ns-地名 nt-团体名 nz-其他专词 """
-        text = self.without_puncs_text.replace(' ', '')
-        seg_list = pseg.cut(text)
+        seg_list = pseg.cut(self.clean_text)
         return seg_list  # iterator
 
     @property
